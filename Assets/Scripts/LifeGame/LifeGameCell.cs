@@ -11,6 +11,7 @@ public class LifeGameCell : MonoBehaviour
 
     private Image _image;
 
+    public int _count;
     public LifeGameCellState CellState
     { 
         get => _cellState;

@@ -13,11 +13,20 @@ public class LifeGameScripts : MonoBehaviour, IPointerClickHandler
     [SerializeField]
     Button _stopButton;
 
+    [SerializeField]
+    Button _speedUpButton;
+
+    [SerializeField]
+    Button _speedDownButton;
+
+    [SerializeField]
+    Text _speedText;
+
     [SerializeField] 
-    int rows = 10;
+    int _rows = 10;
     
     [SerializeField] 
-    int columns = 10;
+    int _columns = 10;
 
     [SerializeField]
     GridLayoutGroup _grid;
@@ -29,17 +38,21 @@ public class LifeGameScripts : MonoBehaviour, IPointerClickHandler
 
     private LifeGameState _gameState = LifeGameState.Stand;
 
+    float _time = 0f;
+
+    float _speed = 0.5f;
+
     // Start is called before the first frame update
     void Start()
     {
         _grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        _grid.constraintCount = columns;
+        _grid.constraintCount = _columns;
 
-        _cells = new LifeGameCell[rows, columns];
+        _cells = new LifeGameCell[_rows, _columns];
         var parent = _grid.gameObject.transform;
-        for(var i = 0; i < rows;i++)
+        for(var i = 0; i < _rows;i++)
         {
-            for(var j = 0;j < columns;j++)
+            for(var j = 0;j < _columns;j++)
             {
                 var cell = Instantiate(_cellPrehab);
                 cell.transform.SetParent(parent);
@@ -49,6 +62,9 @@ public class LifeGameScripts : MonoBehaviour, IPointerClickHandler
         }
         _startButton.onClick.AddListener(GameStart);
         _stopButton.onClick.AddListener(GameStop);
+        _speedUpButton.onClick.AddListener(() => SpeedUpDown(-0.1f));
+        _speedDownButton.onClick.AddListener(() => SpeedUpDown(0.1f));
+        ShowText();
     }
 
     void GameStart()
@@ -61,10 +77,104 @@ public class LifeGameScripts : MonoBehaviour, IPointerClickHandler
         _gameState = LifeGameState.Stand;
     }
 
+    void SpeedUpDown(float count)
+    {
+
+        _speed = Mathf.Max(_speed + count,0.1f);
+
+        ShowText();
+    }
+
+    void ShowText()
+    {
+        _speedText.text = _speed.ToString("0.0") + "•b";
+    }
+
     // Update is called once per frame
     void Update()
     {
-        
+        if (_gameState == LifeGameState.Game)
+        {
+            _time += Time.deltaTime;
+            if (_time >= _speed)
+            {
+                CountCells();
+                _time = 0;
+            }
+        }
+        else
+        {
+            if(Input.GetKey(KeyCode.Space))
+            {
+                _time += Time.deltaTime;
+                if(_time >= 0.1f)
+                {
+                    CountCells();
+                    _time = 0;
+                }
+            }
+            else if(Input.GetKeyUp(KeyCode.Space))
+            {
+                _time = 0;
+            }
+        }
+    }
+
+    void CountCells()
+    {
+        for (var i = 0; i < _rows; i++)
+        {
+            for (var j = 0; j < _columns; j++)
+            {
+                var cell = _cells[i, j];
+                if(cell.CellState == LifeGameCellState.Alive)
+                {
+                    for(var k = -1;k < 2;k += 2)
+                    {
+                        CountUp(i + k, j + k);
+                        CountUp(i + k, j);
+                        CountUp(i, j + k);
+                    }
+                    CountUp(i + 1, j - 1);
+                    CountUp(i - 1, j + 1);
+                }
+            }
+        }
+        ChangeCells();
+    }
+
+    void CountUp(int row,int column)
+    {
+        if (row >= 0 && column >= 0 && row < _rows && column < _columns)
+        {
+            _cells[row, column]._count++;
+        }
+    }
+
+    void ChangeCells()
+    {
+        for (var i = 0; i < _rows; i++)
+        {
+            for (var j = 0; j < _columns; j++)
+            {
+                var cell = _cells[i, j];
+                if(cell.CellState == LifeGameCellState.Alive)
+                {
+                    if(cell._count != 2 && cell._count != 3)
+                    {
+                        cell.CellState = LifeGameCellState.Dead;
+                    }
+                }
+                else
+                {
+                    if(cell._count == 3)
+                    {
+                        cell.CellState |= LifeGameCellState.Alive;
+                    }
+                }
+                cell._count = 0;
+            }
+        }
     }
 
     public void OnPointerClick(PointerEventData eventData)
